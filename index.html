@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>agents-office · AI agent observability dashboard</title>
+  <meta name="description" content="Real-time office dashboard for AI coding agents — Claude Code, OpenCode, Antigravity.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #121318;
+      --surface: #1a1c23;
+      --border: #2a2d37;
+      --text: #e3e1e9;
+      --muted: #7a7d8a;
+      --accent: #00e55b;
+      --accent-dim: #0a3320;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    .container { max-width: 800px; margin: 0 auto; padding: 3rem 1.5rem; }
+    @media (min-width: 640px) { .container { padding: 5rem 2rem; } }
+
+    h1 { font-size: 2.5rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1.15; }
+    @media (min-width: 640px) { h1 { font-size: 3.5rem; } }
+    h2 { font-size: 1.1rem; font-weight: 600; margin-top: 3rem; margin-bottom: 1rem; }
+    h3 { font-size: 0.9rem; font-weight: 600; margin-top: 2rem; margin-bottom: 0.75rem; }
+
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    .tag {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent);
+      border: 1px solid var(--accent-dim);
+      padding: 0.2rem 0.6rem;
+      border-radius: 2px;
+    }
+    p { color: var(--muted); font-size: 0.95rem; max-width: 65ch; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .hero { margin-bottom: 4rem; }
+    .hero p { font-size: 1.1rem; margin-top: 1rem; }
+
+    .links { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-top: 1.5rem; }
+    .links a {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text);
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 0.2rem;
+    }
+    .links a:hover { border-color: var(--accent); text-decoration: none; }
+
+    pre, code { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; }
+    pre {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1.25rem;
+      overflow-x: auto;
+      line-height: 1.5;
+    }
+    code { color: var(--accent); }
+
+    .diagram {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1.5rem;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      line-height: 1.45;
+      color: var(--muted);
+      margin: 1.5rem 0;
+    }
+
+    .cmd { margin: 1rem 0; }
+
+    hr { border: none; border-top: 1px solid var(--border); margin: 3rem 0; }
+
+    ul { color: var(--muted); margin-top: 0.75rem; padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.4rem; }
+    ul strong { color: var(--text); }
+
+    footer { margin-top: 4rem; padding-top: 2rem; border-top: 1px solid var(--border); }
+    footer p { font-size: 0.75rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <section class="hero">
+      <span class="tag">v0.1.13</span>
+      <h1>agents-office</h1>
+      <p>Real-time observability dashboard for AI coding agent sessions. Each running Claude Code, OpenCode, or Antigravity session shows up as an animated agent in a web-based office.</p>
+      <div class="links">
+        <a href="https://github.com/lessch4os/agents-office">GitHub</a>
+        <a href="https://www.npmjs.com/package/@lessch4os/agents-office">npm</a>
+        <a href="https://github.com/lessch4os/agents-office?tab=MIT-1-ov-file">License</a>
+      </div>
+    </section>
+
+    <section>
+      <h2>Architecture</h2>
+      <div class="diagram">
+┌──────────────────┐     Unix socket     ┌──────────────────┐
+│  CC Hook          │ ──────────────────► │                  │
+│  (hook-shim)      │   JSON/event stream │   Bun Daemon     │
+└──────────────────┘                     │  (daemon/src/)   │
+                                          │                  │
+┌──────────────────┐                     │  ┌─ Hook Socket  │
+│  CC Sessions      │     JSONL watch    │  ├─ JSONL Watch  │
+│  (JSONL)          │ ──────────────────► │  ├─ Reducer      │
+└──────────────────┘                     │  ├─ State        │
+                                          │  ├─ WebSocket   │
+┌──────────────────┐     JSONL watch      │  ├─ SSE Watcher  │
+│  Antigravity      │ ──────────────────► │  └─ Plugin       │
+│  Sessions         │                     └────────┬─────────┘
+└──────────────────┘                              │
+                                          WebSocket │
+┌──────────────────┐     Unix socket                │
+│  OpenCode Plugin  │ ──────────────────►           │
+│  (opencode-plugin)│                                │
+└──────────────────┘                                 │
+                                                      ▼
+┌──────────────────┐                          ┌──────────────────┐
+│  Forwarder        │  WebSocket (TLS)        │  Web Frontend    │
+│  (client machine) │ ──────────► /hook       │  (web/src/)      │
+│  Unix socket → WS │                        │  React + PixiJS  │
+└──────────────────┘                          └──────────────────┘
+      </div>
+    </section>
+
+    <section>
+      <h2>Quick start</h2>
+
+      <h3>Pre-built binary (no dependencies)</h3>
+      <pre class="cmd">./daemon/agents-office --port 8080</pre>
+
+      <h3>npm (requires Bun)</h3>
+      <pre class="cmd">npx @lessch4os/agents-office --port 8080</pre>
+
+      <h3>From source</h3>
+      <pre class="cmd">bun install
+bun run daemon/src/main.ts --port 8080</pre>
+
+      <h3>Homebrew</h3>
+      <pre class="cmd">brew tap lessch4os/agents-office
+brew install agents-office
+brew services start agents-office</pre>
+
+      <p>Open <a href="http://localhost:8080">http://localhost:8080</a> in your browser.</p>
+    </section>
+
+    <hr>
+
+    <section>
+      <h2>Supported sources</h2>
+      <ul>
+        <li><strong>Claude Code</strong> — via hook shim + JSONL watcher</li>
+        <li><strong>OpenCode</strong> — via plugin or native SSE watcher</li>
+        <li><strong>Antigravity</strong> — via JSONL brain file watcher</li>
+      </ul>
+    </section>
+
+    <footer>
+      <p>MIT License &middot; <a href="https://github.com/lessch4os/agents-office">lessch4os/agents-office</a></p>
+    </footer>
+  </div>
+</body>
+</html>
