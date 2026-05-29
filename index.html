@@ -8,6 +8,25 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      maxTextSize: 90000,
+      themeVariables: {
+        background: '#1a1c23',
+        primaryColor: '#00e55b',
+        primaryTextColor: '#e3e1e9',
+        primaryBorderColor: '#00e55b',
+        lineColor: '#3b4b3a',
+        secondaryColor: '#121318',
+        tertiaryColor: '#1e1f25',
+        fontSize: '13px',
+        fontFamily: 'JetBrains Mono, monospace',
+      },
+    });
+  </script>
   <style>
     :root {
       --bg: #121318;
@@ -34,7 +53,6 @@
     h2 { font-size: 1.1rem; font-weight: 600; margin-top: 3rem; margin-bottom: 1rem; }
     h3 { font-size: 0.9rem; font-weight: 600; margin-top: 2rem; margin-bottom: 0.75rem; }
 
-    .mono { font-family: 'JetBrains Mono', monospace; }
     .tag {
       display: inline-block;
       font-family: 'JetBrains Mono', monospace;
@@ -76,18 +94,16 @@
     }
     code { color: var(--accent); }
 
-    .diagram {
+    .mermaid {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 4px;
       padding: 1.5rem;
-      overflow-x: auto;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.7rem;
-      line-height: 1.45;
-      color: var(--muted);
       margin: 1.5rem 0;
+      display: flex;
+      justify-content: center;
     }
+    .mermaid svg { max-width: 100%; }
 
     .cmd { margin: 1rem 0; }
 
@@ -115,32 +131,15 @@
 
     <section>
       <h2>Architecture</h2>
-      <div class="diagram">
-┌──────────────────┐     Unix socket     ┌──────────────────┐
-│  CC Hook          │ ──────────────────► │                  │
-│  (hook-shim)      │   JSON/event stream │   Bun Daemon     │
-└──────────────────┘                     │  (daemon/src/)   │
-                                          │                  │
-┌──────────────────┐                     │  ┌─ Hook Socket  │
-│  CC Sessions      │     JSONL watch    │  ├─ JSONL Watch  │
-│  (JSONL)          │ ──────────────────► │  ├─ Reducer      │
-└──────────────────┘                     │  ├─ State        │
-                                          │  ├─ WebSocket   │
-┌──────────────────┐     JSONL watch      │  ├─ SSE Watcher  │
-│  Antigravity      │ ──────────────────► │  └─ Plugin       │
-│  Sessions         │                     └────────┬─────────┘
-└──────────────────┘                              │
-                                          WebSocket │
-┌──────────────────┐     Unix socket                │
-│  OpenCode Plugin  │ ──────────────────►           │
-│  (opencode-plugin)│                                │
-└──────────────────┘                                 │
-                                                      ▼
-┌──────────────────┐                          ┌──────────────────┐
-│  Forwarder        │  WebSocket (TLS)        │  Web Frontend    │
-│  (client machine) │ ──────────► /hook       │  (web/src/)      │
-│  Unix socket → WS │                        │  React + PixiJS  │
-└──────────────────┘                          └──────────────────┘
+      <div class="mermaid">
+flowchart TD
+    CC["Claude Code"] -->|"hook shim · unix socket"| Daemon["Bun Daemon"]
+    AG["Antigravity"] -->|"JSONL watch"| Daemon
+    OC["OpenCode Plugin"] -->|"unix socket"| Daemon
+    SSE["OpenCode SSE"] -->|"event stream"| Daemon
+    FD["Forwarder<br/>laptop"] -->|"WSS /hook"| Daemon
+    Daemon -->|"WS /ws"| Web["React + PixiJS<br/>Web Frontend"]
+    Daemon -->|"Persist"| DB[("SQLite")]
       </div>
     </section>
 
@@ -165,6 +164,26 @@ brew services start agents-office</pre>
       <p>Open <a href="http://localhost:8080">http://localhost:8080</a> in your browser.</p>
     </section>
 
+    <section>
+      <h3>Upgrading (Homebrew)</h3>
+      <pre class="cmd">brew update
+brew upgrade agents-office</pre>
+    </section>
+
+    <hr>
+
+    <section>
+      <h2>Features</h2>
+      <ul>
+        <li><strong>Multi-source</strong> — Claude Code, OpenCode, and Antigravity agents on one dashboard</li>
+        <li><strong>Real-time</strong> — animated agents, live activity feed, token usage tracking</li>
+        <li><strong>Remote</strong> — forwarder relays laptop hooks to a server; view from anywhere</li>
+        <li><strong>Historical</strong> — SQLite-backed session persistence with search and filters</li>
+        <li><strong>Model pricing</strong> — cost tracking per session with context window monitoring</li>
+        <li><strong>Subagent tree</strong> — parent-child session visualization for task hierarchies</li>
+      </ul>
+    </section>
+
     <hr>
 
     <section>
@@ -174,6 +193,17 @@ brew services start agents-office</pre>
         <li><strong>OpenCode</strong> — via plugin or native SSE watcher</li>
         <li><strong>Antigravity</strong> — via JSONL brain file watcher</li>
       </ul>
+    </section>
+
+    <hr>
+
+    <section>
+      <h2>Installation methods</h2>
+      <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+        <tr><th style="text-align:left;border-bottom:1px solid var(--border);padding:0.5rem 0;">Method</th><th style="text-align:left;border-bottom:1px solid var(--border);padding:0.5rem 0;">Command</th></tr>
+        <tr><td style="padding:0.5rem 0;color:var(--accent);font-family:JetBrains Mono,monospace;">npm</td><td style="padding:0.5rem 0;"><code>npx @lessch4os/agents-office --port 8080</code></td></tr>
+        <tr><td style="padding:0.5rem 0;border-bottom:1px solid var(--border);color:var(--accent);font-family:JetBrains Mono,monospace;">Homebrew</td><td style="padding:0.5rem 0;border-bottom:1px solid var(--border);"><code>brew install agents-office</code></td></tr>
+      </table>
     </section>
 
     <footer>
